@@ -22,7 +22,7 @@
 // -----------------------------------------------------------------------------
 // Replace with the public IP or domain name of your PolyTrack backend server
 // To bypass SSL, we use http:// and port 8000 directly
-#define SERVER_URL "http://100.53.12.246:8000"
+#define SERVER_URL "http://polytrack-gpu.duckdns.org:8000/api/v1/telemetry"
 
 // Device ID to identify this specific physical tracker
 // Important: This UUID must match a registered device in the PolyTrack database.

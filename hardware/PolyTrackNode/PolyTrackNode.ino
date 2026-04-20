@@ -42,16 +42,16 @@ void setup() {
     while(1); // Infinite spin loop on failure
   }
 
+  Serial.println(F("Enabling GNSS..."));
+  if (!setupGNSS()) {
+    Serial.println(F("ERROR: Failed to enable GPS engine."));
+  }
+
   Serial.println(F("Connecting to cellular network..."));
   while (!setupNetwork()) {
     Serial.println(F("Network initialization failed. Retrying in 10 seconds..."));
     // Ensure the node doesn't hammer the network if signal is poor
     delay(10000);
-  }
-
-  Serial.println(F("Enabling GNSS..."));
-  if (!setupGNSS()) {
-    Serial.println(F("ERROR: Failed to enable GPS engine."));
   }
 
   Serial.println(F("Node is ready."));
@@ -278,7 +278,6 @@ bool setupNetwork() {
 bool setupGNSS() {
 
   // Turn on Multi-GNSS Mode.
-  // This tells the chip to track BOTH American (GPS) and Russian (GLONASS) satellites at the same time.
   sendATCommand(F("AT+CGNSMOD=1,1,0,0,0"), "OK", 1000);
 
   // Power on the GNSS engine
