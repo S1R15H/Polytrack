@@ -39,6 +39,8 @@ services:
       - "8000:8000"
     env_file:
       - ../backend/.env
+    environment:
+      - FASTAPI_ROOT_PATH=/api
     depends_on:
       db:
         condition: service_healthy

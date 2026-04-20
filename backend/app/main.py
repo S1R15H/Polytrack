@@ -3,6 +3,7 @@ import logging
 import asyncio
 from contextlib import asynccontextmanager
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.requests import Request
@@ -30,7 +31,7 @@ async def lifespan(app: FastAPI):
     retention_task.cancel()
     await engine.dispose()
 
-app = FastAPI(title="PolyTrack API", lifespan=lifespan)
+app = FastAPI(title="PolyTrack API", lifespan=lifespan, root_path=os.getenv("FASTAPI_ROOT_PATH", ""))
 
 # Issue #8: CORS middleware added FIRST, then logging middleware
 # Starlette processes middleware in reverse order of addition,
