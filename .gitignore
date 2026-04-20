@@ -1,0 +1,70 @@
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment Variables / Secrets
+.env
+.env.*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+
+# Python / Backend
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+venv/
+.venv/
+env/
+**/build/
+**/dist/
+**/*.egg-info/
+.mypy_cache/
+.ruff_cache/
+
+# Node / Frontend
+**/node_modules/
+**/dist/
+**/build/
+**/.next/
+**/.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Docker
+docker-compose.override.yml
+
+# Logs and Databases
+*.log
+*.sqlite
+*.sqlite3
+postgres-data/
+pgdata/
+
+# PolyTrack Specific Data
+backend/app/data/dlq/*.json
+backend/app/data/dlq/*.txt
+mosquitto-data/
+mosquitto-logs/
+ollama-data/
+
+.agents/

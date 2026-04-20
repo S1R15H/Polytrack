@@ -1,0 +1,16 @@
+{$DOMAIN} {
+    # Proxy all API requests to the FastAPI backend
+    handle_path /api/* {
+        reverse_proxy api:8000 {
+            header_up X-Forwarded-Prefix /api
+        }
+    }
+
+    # Proxy WebSocket connections for telemetry broadcast
+    handle_path /ws/* {
+        reverse_proxy api:8000 {
+            header_up X-Forwarded-Prefix /ws
+        }
+    }
+
+}

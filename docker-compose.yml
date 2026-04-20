@@ -1,0 +1,78 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-polytrack}
+      POSTGRES_USER: ${POSTGRES_USER:-polytrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB:-polytrack} -U $${POSTGRES_USER:-polytrack}"]
+      interval: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "${API_PORT:-8000}:8000"
+    env_file:
+      - .env
+      - ./backend/.env
+    environment:
+      - OLLAMA_URL=http://ollama:11434/api/chat
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./backend/app:/app/app
+      - dlq-data:/app/data/dlq
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-logs:/mosquitto/log
+
+  ollama:
+    image: ollama/ollama:latest
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_KEEP_ALIVE=-1
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+  ollama-init:
+    image: curlimages/curl:latest
+    depends_on:
+      ollama:
+        condition: service_started
+    command: >
+      sh -c "
+      echo 'Waiting for Ollama to boot...' &&
+      sleep 5 &&
+      echo 'Pulling phi3 model (this takes time if not cached)...' &&
+      curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"phi3\"}' &&
+      echo 'Pre-loading phi3 into RAM...' &&
+      curl -X POST http://ollama:11434/api/generate -d '{\"model\": \"phi3\", \"prompt\": \"Initialize.\", \"stream\": false}' &&
+      echo 'Phi3 is booted and ready!'
+      "
+
+
+volumes:
+  pgdata:
+  mosquitto-data:
+  mosquitto-logs:
+  dlq-data:
+  ollama-data:

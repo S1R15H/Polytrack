@@ -1,0 +1,84 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-polytrack}
+      POSTGRES_USER: ${POSTGRES_USER:-polytrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB:-polytrack} -U $${POSTGRES_USER:-polytrack}"]
+      interval: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Exposing 8000 directly to the host allows the Arduino SIM7000A to 
+    # bypass HTTPS/SSL root certificate requirements by hitting the raw IP:8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    volumes:
+      - dlq-data:/app/data/dlq
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      # Expose MQTT directly so Arduino can connect without SSL wrapper
+      - "1883:1883"
+    volumes:
+      - ../mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-logs:/mosquitto/log
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    volumes:
+      - ollama-data:/root/.ollama
+    # IMPORTANT: Deploy block requires nvidia-container-toolkit installed on the host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  pgdata:
+  mosquitto-data:
+  mosquitto-logs:
+  dlq-data:
+  ollama-data:
+  caddy_data:
+  caddy_config:

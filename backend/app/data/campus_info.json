@@ -1,0 +1,57 @@
+{
+  "school_name": "Florida Polytechnic University",
+  "geographical_info": {
+    "location": "Lakeland, Florida (Located in the high-tech corridor just off I-4 between Tampa and Orlando)",
+    "terrain": "Built around a scenic system of Central Lakes, with campus infrastructure actively expanding along the east and west banks",
+    "campus_layout": "Anchored by the iconic flagship IST building on the north end, residential and wellness facilities in the northeastern quadrant, student development in the southeast, and applied research in the northwest"
+  },
+  "building_names": {
+    "IST": "Innovation, Science, and Technology Building (Flagship building designed by Santiago Calatrava; houses 26 classrooms, 11 innovation labs including digital media, Makerspace, and supercomputing, plus fully digital library access)",
+    "ARC": "Applied Research Center (90,000 sq. ft. facility housing research laboratories, senior design workshops, prototyping, and fabrication facilities)",
+    "SDC": "Student Development Center (Equipped training facility with cardio/strength training equipment, fitness studios, and an outdoor 8-lane heated competition pool)",
+    "Wellness Center": "Central campus hub (Contains primary campus dining facilities, the campus bookstore, Student Health Clinic, Ricoh Mail and Copy Center, and the Parking/Bursar offices)",
+    "Admissions Center": "First stop for prospective students (Houses financial aid and admissions staff, and serves as the starting point for campus tours)",
+    "CCC": "Campus Control Center (Home to the Florida Poly Police Department, facilities management, and administrative operations)",
+    "Residence Hall I": "Phase I Housing (Operated by Capstone Management Partners, featuring modern suite-style living with 2, 3, and 4-bedroom options)",
+    "Residence Hall II": "Phase II Housing (Traditional dorm living with a community feel, equipped with game rooms and common study areas on all five floors)",
+    "Phase III": "Next-Generation Student Living (Newest residential expansion offering modern student apartments)",
+    "SunTrax": "Associated Research Facility (Located off-campus in Auburndale; a 400-acre site with a 2.25-mile oval track for testing connected and autonomous vehicles)"
+  },
+  "food_places": {
+    "Phoenix Food Fusion 'The Fuse'": "Located in the Wellness Center. An all-you-care-to-eat buffet featuring live stations (grill, pizza, vegan, salad) and eco-friendly grab-and-go options.",
+    "Einstein Bros. Bagels": "Located in the Wellness Center. A daily go-to hangout for fresh bagels, sandwiches, and coffee.",
+    "Fire + Ash": "Located in the Wellness Center. A student-favorite rotating concept that reinvents itself every 4-6 weeks (serving Mediterranean, burgers, pho, etc.) based on student text-line feedback.",
+    "Mosaic Café": "Located in the IST Building. Offers grab-and-go snacks, sandwiches, parfaits, and Starbucks beverages between classes.",
+    "Starship Delivery Robots": "High-tech campus-wide food delivery. Autonomous robots that students can order from via an app to have meals delivered anywhere on campus sidewalks."
+  },
+  "activities_and_hangouts": {
+    "The Nest": "Student lounge located inside the Wellness Center dedicated to relaxing, socializing, and gaming.",
+    "SDC Pool": "Outdoor 8-lane heated competition pool at the Student Development Center, open for leisure swimming and physical technology testing.",
+    "Intramural Sports": "Organized recreation events and sports taking place in the green spaces around the SDC and central campus.",
+    "RAD Makerspace": "Rapid Application Development lab in the IST where engineering and tech students hang out to build, prototype, and tinker.",
+    "Campus Oak Grove & Pergolas": "Scenic outdoor architectural walkways surrounding the IST building, popular for studying, photography, and enjoying the Florida weather."
+  },
+  "parking_lots": {
+    "Lots 3, 4, 5, 6, 8, and 10": "Designated for Students with Resident/Commuter Permits",
+    "Lots 8 and 10": "Designated for Students with Economy Permits (a budget-friendly parking option)",
+    "Visitor Parking Loop": "Located at the Admissions Center for prospective students and special event guests",
+    "Lot 1 & 2 Areas": "Generally reserved for Faculty, Staff, and accessible/disability parking near main buildings like the IST and Wellness Center"
+  },
+  "emergency_buttons": [
+    "Blue Light Emergency Phones situated along Polytechnic Circle (the main campus loop road)",
+    "Blue Light Emergency Phones located throughout major student parking areas (Lots 3, 4, 8, and 10)",
+    "Emergency call boxes stationed near pathways connecting Residence Halls I and II to the main academic buildings",
+    "Direct walk-up emergency assistance at the Campus Control Center (Police Department)"
+  ],
+  "specific_resources": {
+    "campus_police": "Campus Control Center, Main Floor",
+    "health_clinic": "Wellness Center, Main Floor",
+    "digital_library": "IST Building (Accessed virtually; collection includes databases, reference materials, journals, and ebooks)",
+    "tutoring_and_academic_success": "IST Building, Student Success Center",
+    "campus_store": "Wellness Center, 1st Floor",
+    "mail_services": "Wellness Center (Ricoh Mail and Copy Center)",
+    "financial_aid": "Admissions Center",
+    "parking_and_transportation_office": "Wellness Center",
+    "student_id_services": "Wellness Center"
+  }
+}
