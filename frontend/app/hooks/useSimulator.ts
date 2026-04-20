@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const API_SERVER = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api/v1";
+const API_SERVER = typeof window !== "undefined"
+  ? (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/v1` : "http://localhost:8000/api/v1")
+  : "http://localhost:8000/api/v1";
 
 interface TelemetryPoint {
   latitude: number;

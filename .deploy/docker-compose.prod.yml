@@ -40,6 +40,7 @@ services:
     env_file:
       - ../backend/.env
     environment:
+      - OLLAMA_URL=http://ollama:11434/api/chat
       - FASTAPI_ROOT_PATH=/api
     depends_on:
       db:
