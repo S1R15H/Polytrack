@@ -21,7 +21,8 @@
 // POLYTRACK SERVER CONFIGURATION
 // -----------------------------------------------------------------------------
 // Replace with the public IP or domain name of your PolyTrack backend server
-#define SERVER_URL "https://criminologically-imperfectible-chris.ngrok-free.dev"
+// To bypass SSL, we use http:// and port 8000 directly
+#define SERVER_URL "http://100.53.12.246:8000"
 
 // Device ID to identify this specific physical tracker
 // Important: This UUID must match a registered device in the PolyTrack database.
