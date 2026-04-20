@@ -68,6 +68,14 @@ services:
       - OLLAMA_HOST=0.0.0.0
     volumes:
       - ollama-data:/root/.ollama
+    # IMPORTANT: Deploy block requires nvidia-container-toolkit installed on the host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
 volumes:
   pgdata:
