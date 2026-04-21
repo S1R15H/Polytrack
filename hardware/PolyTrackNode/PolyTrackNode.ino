@@ -251,32 +251,29 @@ bool setupNetwork() {
 
   // Shut down any stale packet-data protocols (PDP) from previous aborted boots
   sendATCommand(F("AT+CIPSHUT"), "SHUT OK", 3000);
+  sendATCommand(F("AT+CIPMUX=0"), "OK", 2000); // Single connection mode
 
-  // Deactivate any dangling App Networks
-  sendATCommand(F("AT+CNACT=0"), "OK", 2000);
-
-  // --- ACTIVATE NB-IOT / CAT-M1 APP NETWORK (SIM7000 NATIVE) ---
-  Serial.println(F("Defining Cellular PDP Context Tunnel..."));
-  simSerial.print(F("AT+CGDCONT=1,\"IP\",\""));
+  // --- ACTIVATE TRANSPARENT TCP BEARER ---
+  Serial.println(F("Configuring APN..."));
+  simSerial.print(F("AT+CSTT=\""));
   simSerial.print(F(NETWORK_APN));
-  simSerial.println(F("\""));
-  expectResponse("OK", 5000);
-  Serial.println(F("Activating NB-IoT / Cat-M1 Bearer..."));
-  simSerial.print(F("AT+CNACT=1,\""));
-  simSerial.print(F(NETWORK_APN));
-  simSerial.println(F("\""));
+  simSerial.println(F("\",\"\",\"\""));
+  if (!expectResponse("OK", 5000)) {
+     return false;
+  }
   
-  if (!expectResponse("OK", 20000)) {
-      Serial.println(F("Error: AT+CNACT=1 failed. LTE Bearer could not be built."));
+  Serial.println(F("Bringing up Wireless Connection..."));
+  if (!sendATCommand(F("AT+CIICR"), "OK", 20000)) {
+      Serial.println(F("Error: AT+CIICR failed."));
       return false;
   }
   
-  // Wait explicitly a few seconds for the IP to finalize DHCP allocation natively via cell tower
-  delay(3000);
+  delay(2000);
   
-  // Verify the App Network received a valid IP address and bound the LTE radio
-  if (!sendATCommand(F("AT+CNACT?"), "+CNACT: 1", 5000)) {
-      Serial.println(F("Error: App Network down, no IP assigned."));
+  Serial.println(F("Requesting Local IP..."));
+  simSerial.println(F("AT+CIFSR"));
+  if (!expectResponse(".", 5000)) { // Should contain a dot (e.g. 10.0.0.1)
+      Serial.println(F("Error: No IP assigned."));
       return false;
   }
 
@@ -293,32 +290,22 @@ bool setupGNSS() {
 }
 
 bool sendTelemetryHTTP(const char* payload, bool isBatch) {
-  Serial.println(F("Pushing data via Supported LTE-M HTTPINIT Engine..."));
-  
-  // Step 1: Initialize the HTTP sequence
-  sendATCommand(F("AT+HTTPTERM"), "OK", 1000); // Purge stale session
-  if (!sendATCommand(F("AT+HTTPINIT"), "OK", 5000)) {
-     Serial.println(F("HTTPINIT Failed."));
-     return false;
+  Serial.println(F("Pushing data via Raw TCP AT+CIPSTART Socket..."));
+
+  // CRITICAL: Ensure LTE Tunnel survived the GNSS Cold Start!
+  simSerial.println(F("AT+CIFSR"));
+  if (!expectResponse(".", 3000)) {
+     Serial.println(F("LTE Bearer silently dropped! Resurrecting tunnel..."));
+     sendATCommand(F("AT+CIICR"), "OK", 15000);
+     delay(2000); 
   }
-  
-  // Step 2: Map HTTP engine to the active CNACT Context ID (1)
-  simSerial.println(F("AT+HTTPPARA=\"CID\",1"));
-  expectResponse("OK", 2000);
-  
-  // Step 3: Define target URL explicitly via Port 80 mapping to bypass Carrier Blocks!
-  String reqUrl = isBatch ? F("AT+HTTPPARA=\"URL\",\"http://54.167.106.4:80/api/v1/telemetry/batch\"") : F("AT+HTTPPARA=\"URL\",\"http://54.167.106.4:80/api/v1/telemetry\"");
-  simSerial.println(reqUrl);
-  expectResponse("OK", 5000);
-  
-  // Step 4: Define JSON Content-Type
-  simSerial.println(F("AT+HTTPPARA=\"CONTENT\",\"application/json\""));
-  expectResponse("OK", 2000);
-  
-  // Step 5: Calculate payload length
+
+  // Calculate payload length
   int bodyLen = 0;
   if (!isBatch) {
-    bodyLen = strlen(payload);
+    if (payload != NULL) {
+      bodyLen = strlen(payload);
+    }
   } else {
     bodyLen = 2; // For '[' and ']'
     for (int i = 0; i < cacheCount; i++) {
@@ -327,49 +314,75 @@ bool sendTelemetryHTTP(const char* payload, bool isBatch) {
     }
   }
 
-  // Step 6: Input payload
-  simSerial.print(F("AT+HTTPDATA="));
-  simSerial.print(bodyLen);
-  simSerial.println(F(",10000"));
+  // Construct HTTP Headers
+  String endpoint = isBatch ? F("/api/v1/telemetry/batch") : F("/api/v1/telemetry");
+  String host = F("54.167.106.4");
   
-  if (expectResponse("DOWNLOAD", 5000)) {
-    // Send Body
-    if (!isBatch) {
-      simSerial.print(payload);
-    } else {
-      simSerial.print("[");
-      for (int i = 0; i < cacheCount; i++) {
-        simSerial.print(offlineCache[i]);
-        if (i < cacheCount - 1) simSerial.print(",");
-      }
-      simSerial.print("]");
-    }
-    
-    // Wait for the buffer execution confirmation
-    if (expectResponse("OK", 10000)) {
-       Serial.println(F("Payload buffered. Firing POST execution..."));
-       
-       // Step 7: Fire the POST action
-       simSerial.println(F("AT+HTTPACTION=1"));
-       
-       // HTTP action takes time. Wait for network response URC: "+HTTPACTION: 1,<StatusCode>,<Length>"
-       if (expectResponse("+HTTPACTION: 1,20", 30000)) {
-           // We explicitly look for a 200 or 201 by matching "1,20".
-           Serial.println(F(">>> TELEMETRY HTTP ACCEPTED BY FASTAPI! <<<"));
-           sendATCommand(F("AT+HTTPTERM"), "OK", 2000);
-           return true; 
-       } else {
-           Serial.println(F("HTTP POST Rejected by backend/tower. API Diagnosis Trace:"));
-           Serial.println(responseBuffer);
+  String headers = "POST " + endpoint + " HTTP/1.1\r\n";
+  headers += "Host: " + host + "\r\n";
+  headers += "Content-Type: application/json\r\n";
+  headers += "Content-Length: " + String(bodyLen) + "\r\n";
+  headers += "Connection: close\r\n\r\n";
+
+  int totalLen = headers.length() + bodyLen;
+
+  // Step 1: Open TCP Socket to Server
+  // Syntax: AT+CIPSTART="TCP","IP","PORT"
+  Serial.println(F("Opening TCP socket to backend..."));
+  simSerial.println(F("AT+CIPSTART=\"TCP\",\"54.167.106.4\",\"8000\""));
+  
+  // The module responds with CONNECT OK
+  if (!expectResponse("CONNECT OK", 15000)) {
+      Serial.println(F("Failed to establish TCP connection."));
+      sendATCommand(F("AT+CIPCLOSE"), "OK", 2000);
+      return false;
+  }
+
+  // Step 2: Inform module of total bytes we are piping
+  simSerial.print(F("AT+CIPSEND="));
+  simSerial.println(totalLen);
+  
+  // Wait for the '>' prompt
+  if (expectResponse(">", 5000)) {
+     // Send Headers
+     simSerial.print(headers);
+     
+     // Send Body
+     if (!isBatch) {
+       if (payload != NULL) {
+         simSerial.print(payload);
        }
-    } else {
-       Serial.println(F("Modem timed out buffering payload."));
-    }
+     } else {
+       simSerial.print("[");
+       for (int i = 0; i < cacheCount; i++) {
+         simSerial.print(offlineCache[i]);
+         if (i < cacheCount - 1) simSerial.print(",");
+       }
+       simSerial.print("]");
+     }
+
+     // Wait for module to confirm it buffered the transmission
+     if (expectResponse("SEND OK", 5000)) {
+        Serial.println(F("Raw Request pushed! Waiting for Server HTTP Response..."));
+        
+        // Wait for the server to reply with "HTTP/1.x 200" or similar
+        // Response format is generally +CARECV: ... then the body, but we can just scan for "HTTP/1.1 20"
+        if (expectResponse("HTTP/1.1 20", 20000)) {
+           Serial.println(F(">>> TELEMETRY HTTP ACCEPTED BY FASTAPI! <<<"));
+           sendATCommand(F("AT+CIPCLOSE"), "OK", 2000);
+           return true; 
+        } else {
+           Serial.println(F("Backend did not acknowledge 20x OK."));
+           Serial.println(responseBuffer);
+        }
+     } else {
+        Serial.println(F("Modem rejected the AT+CIPSEND block."));
+     }
   } else {
-    Serial.println(F("Modem refused HTTPDATA payload stream."));
+    Serial.println(F("Did not receive '>' prompt for CIPSEND."));
   }
   
-  // Step 8: MANDATORY sequence termination
-  sendATCommand(F("AT+HTTPTERM"), "OK", 2000);
+  // Step 3: Always close the link
+  sendATCommand(F("AT+CIPCLOSE"), "OK", 2000);
   return false;
 }
