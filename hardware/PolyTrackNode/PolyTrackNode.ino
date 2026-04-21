@@ -256,6 +256,11 @@ bool setupNetwork() {
   sendATCommand(F("AT+CNACT=0"), "OK", 2000);
 
   // --- ACTIVATE NB-IOT / CAT-M1 APP NETWORK (SIM7000 NATIVE) ---
+  Serial.println(F("Defining Cellular PDP Context Tunnel..."));
+  simSerial.print(F("AT+CGDCONT=1,\"IP\",\""));
+  simSerial.print(F(NETWORK_APN));
+  simSerial.println(F("\""));
+  expectResponse("OK", 5000);
   Serial.println(F("Activating NB-IoT / Cat-M1 Bearer..."));
   simSerial.print(F("AT+CNACT=1,\""));
   simSerial.print(F(NETWORK_APN));
@@ -288,7 +293,7 @@ bool setupGNSS() {
 }
 
 bool sendTelemetryHTTP(const char* payload, bool isBatch) {
-  Serial.println(F("Pushing data to AWS via Native SIM7000 HTTPINIT Engine..."));
+  Serial.println(F("Pushing data via Supported LTE-M HTTPINIT Engine..."));
   
   // Step 1: Initialize the HTTP sequence
   sendATCommand(F("AT+HTTPTERM"), "OK", 1000); // Purge stale session
@@ -301,8 +306,7 @@ bool sendTelemetryHTTP(const char* payload, bool isBatch) {
   simSerial.println(F("AT+HTTPPARA=\"CID\",1"));
   expectResponse("OK", 2000);
   
-  // Step 3: Define target URL explicitly via Port 80.
-  // Port 80 avoids SpeedTalk CGNAT drops. Caddy now maps it automatically natively.
+  // Step 3: Define target URL explicitly via Port 80 mapping to bypass Carrier Blocks!
   String reqUrl = isBatch ? F("AT+HTTPPARA=\"URL\",\"http://54.167.106.4:80/api/v1/telemetry/batch\"") : F("AT+HTTPPARA=\"URL\",\"http://54.167.106.4:80/api/v1/telemetry\"");
   simSerial.println(reqUrl);
   expectResponse("OK", 5000);
@@ -345,7 +349,7 @@ bool sendTelemetryHTTP(const char* payload, bool isBatch) {
     if (expectResponse("OK", 10000)) {
        Serial.println(F("Payload buffered. Firing POST execution..."));
        
-       // Step 7: Fire the POST action to duckdns/caddy
+       // Step 7: Fire the POST action
        simSerial.println(F("AT+HTTPACTION=1"));
        
        // HTTP action takes time. Wait for network response URC: "+HTTPACTION: 1,<StatusCode>,<Length>"
@@ -355,7 +359,7 @@ bool sendTelemetryHTTP(const char* payload, bool isBatch) {
            sendATCommand(F("AT+HTTPTERM"), "OK", 2000);
            return true; 
        } else {
-           Serial.println(F("HTTP POST Rejected by backend. API Diagnosis Trace:"));
+           Serial.println(F("HTTP POST Rejected by backend/tower. API Diagnosis Trace:"));
            Serial.println(responseBuffer);
        }
     } else {
@@ -365,7 +369,7 @@ bool sendTelemetryHTTP(const char* payload, bool isBatch) {
     Serial.println(F("Modem refused HTTPDATA payload stream."));
   }
   
-  // Step 8: MANDATORY sequence termination to prevent memory locks.
+  // Step 8: MANDATORY sequence termination
   sendATCommand(F("AT+HTTPTERM"), "OK", 2000);
   return false;
 }
