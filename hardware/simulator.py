@@ -35,36 +35,32 @@ def process_buffered_payloads(backend_url: str) -> bool:
     if not payload_buffer:
         return True
         
-    print(f"[RETRY] Attempting to flush {len(payload_buffer)} buffered payloads...")
-    # The Arduino sends payloads one by one when connection returns
-    for i in range(len(payload_buffer)):
-        payload = payload_buffer[0] # peek at head
-        try:
-            req = requests.post(
-                f"{backend_url}/api/v1/telemetry", 
-                json=payload,
-                headers={"ngrok-skip-browser-warning": "true"},
-                timeout=5
-            )
-            if req.status_code == 200 or req.status_code == 201:
-                # Success, remove from buffer
-                payload_buffer.pop(0)
-            else:
-                print(f"[RETRY FAILED] HTTP {req.status_code}")
-                return False
-        except requests.exceptions.RequestException:
-            print("[RETRY FAILED] Network error.")
+    print(f"[RETRY] Attempting to flush {len(payload_buffer)} buffered payloads via BATCH...")
+    try:
+        # The new Arduino logic streams the entire cache array to the batch endpoint
+        req = requests.post(
+            f"{backend_url}/api/v1/telemetry/batch", 
+            json=payload_buffer,
+            headers={"Host": "polytrack-gpu.duckdns.org"}, # Emulate the Arduino's bypass header hack
+            timeout=10
+        )
+        if req.status_code == 200 or req.status_code == 201:
+            print("[RETRY SUCCESS] Batch buffer securely flushed to AWS.")
+            payload_buffer.clear()
+            return True
+        else:
+            print(f"[RETRY FAILED] HTTP {req.status_code}")
             return False
-            
-    print("[RETRY SUCCESS] Buffer flushed.")
-    return True
+    except requests.exceptions.RequestException:
+        print("[RETRY FAILED] Network error.")
+        return False
 
 def main():
     parser = argparse.ArgumentParser(description="PolyTrack Hardware node simulator (Python)")
     parser.add_argument("--device-id", type=str, default="123e4567-e89b-12d3-a456-426614174000")
     parser.add_argument("--interval", type=int, default=10, help="Seconds between GNSS polls")
     parser.add_argument("--fail-rate", type=float, default=0.2, help="Probability (0.0 - 1.0) of a cell network dropout")
-    parser.add_argument("--backend-url", type=str, default="http://localhost:8000")
+    parser.add_argument("--backend-url", type=str, default="http://54.167.106.4:80", help="Raw AWS EC2 Pipe")
     
     args = parser.parse_args()
     
@@ -104,7 +100,7 @@ def main():
                     req = requests.post(
                         f"{args.backend_url}/api/v1/telemetry", 
                         json=payload, 
-                        headers={"ngrok-skip-browser-warning": "true"},
+                        headers={"Host": "polytrack-gpu.duckdns.org"},
                         timeout=5
                     )
                     if req.status_code == 200 or req.status_code == 201:

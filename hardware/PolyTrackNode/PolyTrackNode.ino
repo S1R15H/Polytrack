@@ -42,16 +42,16 @@ void setup() {
     while(1); // Infinite spin loop on failure
   }
 
-  Serial.println(F("Enabling GNSS..."));
-  if (!setupGNSS()) {
-    Serial.println(F("ERROR: Failed to enable GPS engine."));
-  }
-
   Serial.println(F("Connecting to cellular network..."));
   while (!setupNetwork()) {
     Serial.println(F("Network initialization failed. Retrying in 10 seconds..."));
     // Ensure the node doesn't hammer the network if signal is poor
     delay(10000);
+  }
+
+  Serial.println(F("Enabling GNSS..."));
+  if (!setupGNSS()) {
+    Serial.println(F("ERROR: Failed to enable GPS engine."));
   }
 
   Serial.println(F("Node is ready."));
@@ -252,23 +252,26 @@ bool setupNetwork() {
   // Shut down any stale packet-data protocols (PDP) from previous aborted boots
   sendATCommand(F("AT+CIPSHUT"), "SHUT OK", 3000);
 
-  simSerial.print(F("AT+CSTT=\""));
+  // Deactivate any dangling App Networks
+  sendATCommand(F("AT+CNACT=0"), "OK", 2000);
+
+  // --- ACTIVATE NB-IOT / CAT-M1 APP NETWORK (SIM7000 NATIVE) ---
+  Serial.println(F("Activating NB-IoT / Cat-M1 Bearer..."));
+  simSerial.print(F("AT+CNACT=1,\""));
   simSerial.print(F(NETWORK_APN));
-  simSerial.println(F("\",\"\",\"\""));
-  if (!expectResponse("OK", 5000)) {
-     Serial.println(F("Error setting APN."));
-     return false;
-  }
+  simSerial.println(F("\""));
   
-  // High-power RF activity starts here:
-  Serial.println(F("Bringing up wireless connection..."));
-  if (!sendATCommand(F("AT+CIICR"), "OK", 15000)) {
-      Serial.println(F("Error: AT+CIICR failed."));
+  if (!expectResponse("OK", 20000)) {
+      Serial.println(F("Error: AT+CNACT=1 failed. LTE Bearer could not be built."));
       return false;
   }
   
-  if (!sendATCommand(F("AT+CIFSR"), ".", 3000)) {
-      Serial.println(F("Error: Could not get IP address."));
+  // Wait explicitly a few seconds for the IP to finalize DHCP allocation natively via cell tower
+  delay(3000);
+  
+  // Verify the App Network received a valid IP address and bound the LTE radio
+  if (!sendATCommand(F("AT+CNACT?"), "+CNACT: 1", 5000)) {
+      Serial.println(F("Error: App Network down, no IP assigned."));
       return false;
   }
 
@@ -285,30 +288,30 @@ bool setupGNSS() {
 }
 
 bool sendTelemetryHTTP(const char* payload, bool isBatch) {
-  Serial.println(F("Sending via HTTP..."));
+  Serial.println(F("Pushing data to AWS via Native SIM7000 HTTPINIT Engine..."));
   
-  // CRITICAL FIX: Gracefully shut down dangling connections before trying to open a new one
-  sendATCommand(F("AT+SHDISC"), "OK", 1000);
-
-  simSerial.print(F("AT+SHCONF=\"URL\",\""));
-  simSerial.print(F(SERVER_URL));
-  simSerial.println(F("\""));
-  expectResponse("OK", 2000);
-
-  sendATCommand(F("AT+SHCONF=\"BODYLEN\",1024"), "OK", 2000);
-  sendATCommand(F("AT+SHCONF=\"HEADERLEN\",350"), "OK", 2000);
-  
-  if (!sendATCommand(F("AT+SHCONN"), "OK", 5000)) {
-    Serial.println(F("HTTP Connection Failed."));
-    return false;
+  // Step 1: Initialize the HTTP sequence
+  sendATCommand(F("AT+HTTPTERM"), "OK", 1000); // Purge stale session
+  if (!sendATCommand(F("AT+HTTPINIT"), "OK", 5000)) {
+     Serial.println(F("HTTPINIT Failed."));
+     return false;
   }
-
-  sendATCommand(F("AT+SHCHEAD"), "OK", 1000);
-  sendATCommand(F("AT+SHAHEAD=\"Content-Type\",\"application/json\""), "OK", 1000);
   
-  bool success = false;
+  // Step 2: Map HTTP engine to the active CNACT Context ID (1)
+  simSerial.println(F("AT+HTTPPARA=\"CID\",1"));
+  expectResponse("OK", 2000);
   
-  // 1. Calculate the exact length of the payload
+  // Step 3: Define target URL explicitly via Port 80.
+  // Port 80 avoids SpeedTalk CGNAT drops. Caddy now maps it automatically natively.
+  String reqUrl = isBatch ? F("AT+HTTPPARA=\"URL\",\"http://54.167.106.4:80/api/v1/telemetry/batch\"") : F("AT+HTTPPARA=\"URL\",\"http://54.167.106.4:80/api/v1/telemetry\"");
+  simSerial.println(reqUrl);
+  expectResponse("OK", 5000);
+  
+  // Step 4: Define JSON Content-Type
+  simSerial.println(F("AT+HTTPPARA=\"CONTENT\",\"application/json\""));
+  expectResponse("OK", 2000);
+  
+  // Step 5: Calculate payload length
   int bodyLen = 0;
   if (!isBatch) {
     bodyLen = strlen(payload);
@@ -316,49 +319,53 @@ bool sendTelemetryHTTP(const char* payload, bool isBatch) {
     bodyLen = 2; // For '[' and ']'
     for (int i = 0; i < cacheCount; i++) {
       bodyLen += strlen(offlineCache[i]);
-      if (i < cacheCount - 1) bodyLen++; // comma
+      if (i < cacheCount - 1) bodyLen++;
     }
   }
 
-  simSerial.print(F("AT+SHBOD="));
+  // Step 6: Input payload
+  simSerial.print(F("AT+HTTPDATA="));
   simSerial.print(bodyLen);
   simSerial.println(F(",10000"));
   
-  if (expectResponse(">", 2000)) {
-    // 2. Stream the payload directly to the modem, bypassing RAM allocation
+  if (expectResponse("DOWNLOAD", 5000)) {
+    // Send Body
     if (!isBatch) {
-      simSerial.println(payload);
+      simSerial.print(payload);
     } else {
       simSerial.print("[");
       for (int i = 0; i < cacheCount; i++) {
         simSerial.print(offlineCache[i]);
         if (i < cacheCount - 1) simSerial.print(",");
       }
-      simSerial.println("]");
+      simSerial.print("]");
     }
     
-    // Wait for the modem to accept the body text
-    expectResponse("OK", 5000);
-    
-    // 3. Dynamically route payload to single or batch POST logic
-    simSerial.print(F("AT+SHREQ=\""));
-    if (isBatch) {
-      simSerial.print(F("/api/v1/telemetry/batch"));
-    } else {
-      simSerial.print(F("/api/v1/telemetry"));
-    }
-    simSerial.println(F("\",3"));
-
+    // Wait for the buffer execution confirmation
     if (expectResponse("OK", 10000)) {
-      Serial.println(F("Telemetry HTTP request acknowledged!"));
-      success = true;
+       Serial.println(F("Payload buffered. Firing POST execution..."));
+       
+       // Step 7: Fire the POST action to duckdns/caddy
+       simSerial.println(F("AT+HTTPACTION=1"));
+       
+       // HTTP action takes time. Wait for network response URC: "+HTTPACTION: 1,<StatusCode>,<Length>"
+       if (expectResponse("+HTTPACTION: 1,20", 30000)) {
+           // We explicitly look for a 200 or 201 by matching "1,20".
+           Serial.println(F(">>> TELEMETRY HTTP ACCEPTED BY FASTAPI! <<<"));
+           sendATCommand(F("AT+HTTPTERM"), "OK", 2000);
+           return true; 
+       } else {
+           Serial.println(F("HTTP POST Rejected by backend. API Diagnosis Trace:"));
+           Serial.println(responseBuffer);
+       }
     } else {
-      Serial.println(F("AT+SHREQ failed."));
+       Serial.println(F("Modem timed out buffering payload."));
     }
   } else {
-    Serial.println(F("Failed to write HTTP body."));
+    Serial.println(F("Modem refused HTTPDATA payload stream."));
   }
   
-  sendATCommand(F("AT+SHDISC"), "OK", 2000);
-  return success;
+  // Step 8: MANDATORY sequence termination to prevent memory locks.
+  sendATCommand(F("AT+HTTPTERM"), "OK", 2000);
+  return false;
 }
