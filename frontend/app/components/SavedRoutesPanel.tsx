@@ -47,7 +47,7 @@ export function SavedRoutesPanel({ onClose, onRouteSelect, onShowToast }: SavedR
   };
 
   return (
-    <aside className="absolute inset-0 md:relative md:inset-auto w-full md:w-[400px] max-w-full bg-white h-full flex flex-col shadow-2xl z-50 md:z-30 border-r border-gray-100">
+    <aside className="absolute inset-0 md:relative md:inset-auto w-full md:w-[400px] max-w-full bg-white h-full flex flex-col shadow-2xl z-[2000] border-r border-gray-100">
       {/* Header */}
       <div className="flex items-center gap-3 p-5 border-b border-gray-100">
         <button onClick={onClose} className="text-gray-500 hover:text-gray-800 transition-colors p-1">

@@ -15,7 +15,7 @@
 // CELLULAR NETWORK CONFIGURATION
 // -----------------------------------------------------------------------------
 // Replace with your cellular provider's APN (e.g., "hologram", "iot.truphone.com", "super")
-#define NETWORK_APN "wholesale"
+#define NETWORK_APN "wireless.dish.com"
 
 // -----------------------------------------------------------------------------
 // POLYTRACK SERVER CONFIGURATION
@@ -29,6 +29,6 @@
 #define DEVICE_ID "123e4567-e89b-12d3-a456-426614174000"
 
 // Delay between telemetry transmissions in milliseconds (e.g., 10000 = 10 seconds)
-#define TELEMETRY_INTERVAL_MS 10000
+#define TELEMETRY_INTERVAL_MS 3000
 
 #endif // POLYTRACK_CONFIG_H

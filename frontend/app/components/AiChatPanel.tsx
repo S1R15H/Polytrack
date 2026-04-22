@@ -87,7 +87,7 @@ export function AiChatPanel({ onClose }: AiChatPanelProps) {
   };
 
   return (
-    <aside className="absolute inset-0 md:relative md:inset-auto w-full md:w-[400px] max-w-full bg-white h-full flex flex-col shadow-2xl z-50 md:z-40 border-r border-gray-100">
+    <aside className="absolute inset-0 md:inset-auto md:top-0 md:right-0 w-full md:w-[400px] max-w-full bg-white h-full flex flex-col shadow-2xl z-[2000] border-l md:border-r border-gray-100">
       {/* Header */}
       <div className="flex items-center gap-3 p-5 border-b border-gray-100 bg-purple-50">
         <button onClick={onClose} className="text-purple-600 hover:text-purple-800 transition-colors p-1">

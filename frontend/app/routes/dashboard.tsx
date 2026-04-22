@@ -244,13 +244,11 @@ export default function Dashboard() {
         )}
 
         {/* Map fills remaining space */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative z-0">
 
           {/* AI Chat sidebar */}
           {showAiChat && (
-            <div className="absolute top-0 right-0 h-full z-50">
-              <AiChatPanel onClose={() => setShowAiChat(false)} />
-            </div>
+            <AiChatPanel onClose={() => setShowAiChat(false)} />
           )}
 
           <Suspense
@@ -399,8 +397,8 @@ export default function Dashboard() {
 
           {/* Top row: Search + Live View + Directions (same horizontal row) */}
           {activeTab !== 'go' ? (
-            <div className="absolute top-4 left-3 right-3 md:left-4 md:right-4 z-40 flex items-center gap-2 md:gap-3">
-              <div className="flex justify-center flex-1 max-w-xl px-0 md:px-4">
+            <div className="absolute top-4 left-3 right-3 md:left-4 md:right-4 z-40 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3 pointer-events-none">
+              <div className="flex justify-center w-full flex-1 max-w-xl px-0 md:px-4 pointer-events-auto">
                 <SearchBar 
                   value={searchQuery}
                   onChange={(val) => {
@@ -420,7 +418,9 @@ export default function Dashboard() {
                   showQuickCategories={true}
                 />
               </div>
-              <DirectionsButton onClick={() => setShowDirections(true)} />
+              <div className="pointer-events-auto flex w-full sm:w-auto justify-end sm:justify-start">
+                <DirectionsButton onClick={() => setShowDirections(true)} />
+              </div>
             </div>
           ) : (
             <div className="absolute top-4 left-3 right-3 md:left-4 md:right-4 z-40 bg-blue-600 shadow-xl rounded-2xl p-4 flex items-center justify-between text-white">

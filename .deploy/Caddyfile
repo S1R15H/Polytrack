@@ -10,3 +10,16 @@
     }
 
 }
+
+# Hardware Proxy: Bypass Auto-HTTPS for IoT Devices
+# SIM7000 and similar devices lack the hardware SSL required for HTTPS handshakes.
+# This explicitly allows raw Port 80 HTTP traffic to route safely to the FastAPI container,
+# while completely abiding by strict Carrier CGNAT constraints (which block obscure ports like 8000).
+http://:80 {
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+    handle /ws/* {
+        reverse_proxy api:8000
+    }
+}
