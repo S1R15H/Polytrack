@@ -9,8 +9,16 @@ PolyTrack is a high-performance, real-time microtransit telemetry ecosystem. It 
 
 ## 📽️ Demo
 > [!NOTE]
-> **Demo Video Placeholder**
-> [Click here to watch the PolyTrack Demo](https://youtube.com) (Update link when available)
+
+**Live Site:**https://main.d3717ef36oy0d4.amplifyapp.com/dashboard/
+
+**Video DEMOs:**
+
+https://github.com/user-attachments/assets/5d5e2c63-1381-43f2-accf-d092208019d5
+
+https://github.com/user-attachments/assets/cdc1e044-3fb2-4add-9af9-8c5da518da74
+
+https://github.com/user-attachments/assets/4300ca9d-41c2-45ae-9e73-8b71119d5633
 
 ---
 
